@@ -4,10 +4,15 @@ on:
   workflow_call:
     inputs:
       mihomo_version:
-        description: Optional override for the bundled and tested Mihomo release tag
+        description: Optional override for the Mihomo release tag used in integration tests
         required: false
         default: ""
         type: string
+      build_linux:
+        description: Build the Ubuntu .deb package (off by default)
+        required: false
+        default: false
+        type: boolean
     secrets:
       test_profile_url:
         description: Optional real-profile URL; the bundled profile is used when absent
@@ -120,8 +125,18 @@ jobs:
           --exact --ignored --nocapture
 
   macos:
-    name: macOS Apple Silicon installer
-    needs: [prepare, verify]
+    name: macOS ${{ matrix.arch }} installer
+    # Packaging does not consume the Linux verification result; a failing verify
+    # job still fails this workflow and blocks the release job in release.yml.
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            target: aarch64-apple-darwin
+          - arch: x86_64
+            target: x86_64-apple-darwin
     runs-on: macos-latest
     timeout-minutes: 90
     steps:
@@ -131,41 +146,31 @@ jobs:
       - name: Set up project Rust
         uses: ./.github/actions/setup-rust
         with:
-          target: aarch64-apple-darwin
+          target: ${{ matrix.target }}
+          cache-key: ${{ matrix.arch }}
 
       - name: Run shared Rust checks
+        if: matrix.arch == 'arm64'
         uses: ./.github/actions/verify-rust
 
       - name: Test macOS application packaging
         run: bash scripts/tests/build_macos_app_test.sh
 
       - name: Build macOS DMG
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: scripts/build_macos_package.sh '${{ needs.prepare.outputs.version }}' dist
+        run: scripts/build_macos_package.sh '${{ needs.prepare.outputs.version }}' dist '${{ matrix.arch }}'
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: zenclash-macos-arm64
-          path: dist/ZenClash-${{ needs.prepare.outputs.version }}-macOS-arm64.dmg
+          name: zenclash-macos-${{ matrix.arch }}
+          path: dist/ZenClash-${{ needs.prepare.outputs.version }}-macOS-${{ matrix.arch }}.dmg
           if-no-files-found: error
           compression-level: 0
 
   windows:
-    name: Windows ${{ matrix.arch }} installer
-    needs: [prepare, verify]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            runner: windows-2022
-            target: x86_64-pc-windows-msvc
-          - arch: arm64
-            runner: windows-11-arm
-            target: aarch64-pc-windows-msvc
-    runs-on: ${{ matrix.runner }}
+    name: Windows x64 installer
+    needs: prepare
+    runs-on: windows-2022
     timeout-minutes: 90
     steps:
       - name: Check out source
@@ -174,35 +179,34 @@ jobs:
       - name: Set up project Rust
         uses: ./.github/actions/setup-rust
         with:
-          target: ${{ matrix.target }}
+          target: x86_64-pc-windows-msvc
 
       - name: Run shared Rust checks
         uses: ./.github/actions/verify-rust
 
       - name: Test Windows installer packaging
         shell: pwsh
-        run: scripts/tests/build_windows_installer_test.ps1 -Architecture '${{ matrix.arch }}'
+        run: scripts/tests/build_windows_installer_test.ps1 -Architecture x64
 
       - name: Build Windows setup installer
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: >-
           scripts/build_windows_installer.ps1
           -Version '${{ needs.prepare.outputs.version }}'
-          -Architecture '${{ matrix.arch }}'
+          -Architecture x64
           -OutputDir dist
 
       - name: Upload Windows setup installer
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: zenclash-windows-${{ matrix.arch }}
-          path: dist/ZenClash-${{ needs.prepare.outputs.version }}-windows-${{ matrix.arch }}-setup.exe
+          name: zenclash-windows-x64
+          path: dist/ZenClash-${{ needs.prepare.outputs.version }}-windows-x64-setup.exe
           if-no-files-found: error
           compression-level: 0
 
   ubuntu:
     name: Ubuntu 24.04+ ${{ matrix.arch }} package
+    if: inputs.build_linux == true
     needs: [prepare, verify]
     strategy:
       fail-fast: false

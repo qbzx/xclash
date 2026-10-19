@@ -75,11 +75,11 @@
 
 | 平台 | 架构 | 安装包 |
 | --- | --- | --- |
-| macOS | Apple Silicon（arm64） | `.dmg` |
-| Windows | x86_64、arm64 | 安装向导 `.exe` |
-| Ubuntu 24.04+ | x86_64、arm64 | `.deb` |
+| macOS | Apple Silicon（arm64）、Intel（x86_64） | `.dmg` |
+| Windows | x86_64 | 安装向导 `.exe` |
+| Ubuntu 24.04+ | x86_64、arm64（可选构建） | `.deb` |
 
-发布包内置 Mihomo，应用启动时会自动发现并准备内核。安装文件的格式与系统要求以对应 Release 说明为准；macOS 用户可查看[安装指南](docs/installation/macos.md)。
+发布包不内置 Mihomo 内核。请自行下载与系统匹配的内核，将其加入 `PATH`，或在「设置 → 运行内核 → 选择文件」中指定。安装文件的格式与系统要求以对应 Release 说明为准；macOS 用户可查看[安装指南](docs/installation/macos.md)。
 
 **三步开始：**
 

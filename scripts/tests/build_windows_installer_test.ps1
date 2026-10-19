@@ -1,21 +1,19 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('x64', 'arm64')]
+    [ValidateSet('x64')]
     [string]$Architecture = 'x64'
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-$ExpectedTargetTriple = if ($Architecture -eq 'arm64') { 'aarch64-pc-windows-msvc' } else { 'x86_64-pc-windows-msvc' }
+$ExpectedTargetTriple = 'x86_64-pc-windows-msvc'
 $TemporaryRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
 $TestRoot = Join-Path $TemporaryRoot ('zenclash-windows-package-test-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $TestRoot | Out-Null
 $PreviousTarget = $env:CARGO_TARGET_DIR
 $PreviousFixtureRoot = $env:ZENCLASH_PACKAGE_TEST_ROOT
 $PreviousMode = $env:ZENCLASH_PACKAGE_TEST_MODE
-$PreviousMihomoTag = $env:MIHOMO_VERSION
-$env:MIHOMO_VERSION = "v1.19.30"
 
 try {
     # These ordinary native fixtures exercise packaging only, not Mihomo or SCM.
@@ -34,8 +32,6 @@ fn main() {
 '@ | Set-Content -LiteralPath (Join-Path $TestRoot 'fixture.rs')
     & rustc --edition 2024 --crate-name windows_package_fixture (Join-Path $TestRoot 'fixture.rs') -o (Join-Path $TestRoot 'fixture.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Native packaging fixture compilation failed' }
-    Copy-Item -LiteralPath (Join-Path $TestRoot 'fixture.exe') -Destination (Join-Path $TestRoot 'mihomo.exe')
-    'ordinary packaging fixture' | Set-Content -LiteralPath (Join-Path $TestRoot 'geoip.metadb')
 
     # Avoid replacing resources on an executable: icon injection is outside this test.
     Microsoft.PowerShell.Utility\Add-Type -TypeDefinition @'
@@ -86,7 +82,7 @@ $ErrorActionPreference = 'Stop'
 $Stage = ($args | Where-Object { $_ -like '/DSourceDir=*' }).Substring(12)
 $Output = ($args | Where-Object { $_ -like '/DOutputDir=*' }).Substring(12)
 $AppArchitecture = ($args | Where-Object { $_ -like '/DAppArchitecture=*' }).Split('=', 2)[1]
-if ($AppArchitecture -notin @('x64', 'arm64')) { throw 'Installer architecture was not passed to ISCC' }
+if ($AppArchitecture -notin @('x64')) { throw 'Installer architecture was not passed to ISCC' }
 $Helper = Join-Path $Stage 'zenclash-service.exe'
 if (-not (Test-Path -LiteralPath $Helper -PathType Leaf) -or (Get-Item -LiteralPath $Helper).Length -eq 0) {
     throw 'ISCC received no nonempty service payload'
@@ -97,6 +93,8 @@ foreach ($Tool in @('zenclash-service-install.exe', 'zenclash-service-uninstall.
     if (-not (Test-Path -LiteralPath $ToolPath -PathType Leaf) -or (Get-Item -LiteralPath $ToolPath).Length -eq 0) { throw "Missing native tool: $Tool" }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $Stage 'LICENSE.txt') -PathType Leaf)) { throw 'Missing LICENSE.txt' }
+if (Test-Path -LiteralPath (Join-Path $Stage 'resources\mihomo.exe')) { throw 'Staged bundle must not contain mihomo.exe' }
+if (Test-Path -LiteralPath (Join-Path $Stage 'resources\geoip.metadb')) { throw 'Staged bundle must not contain geoip.metadb' }
 $Gui = Join-Path $Stage 'zenclash.exe'
 if (-not (Test-Path -LiteralPath $Gui -PathType Leaf) -or (Get-Item -LiteralPath $Gui).Length -eq 0) {
     throw 'ISCC received no nonempty GUI payload'
@@ -136,8 +134,7 @@ $global:LASTEXITCODE = 0
         $Failure = $null
         try {
             & (Join-Path $ProjectRoot 'scripts/build_windows_installer.ps1') -Version 9.8.7 -Architecture $Architecture `
-                -OutputDir (Join-Path $TestRoot $Mode) -MihomoBinary (Join-Path $TestRoot 'mihomo.exe') `
-                -GeoDataFile (Join-Path $TestRoot 'geoip.metadb') -InnoCompiler (Join-Path $TestRoot 'iscc.ps1')
+                -OutputDir (Join-Path $TestRoot $Mode) -InnoCompiler (Join-Path $TestRoot 'iscc.ps1')
         } catch { $Failure = $_ }
         if ($Mode -eq 'success') {
             if ($null -ne $Failure) { throw $Failure }
@@ -174,7 +171,6 @@ $global:LASTEXITCODE = 0
     $env:CARGO_TARGET_DIR = $PreviousTarget
     $env:ZENCLASH_PACKAGE_TEST_ROOT = $PreviousFixtureRoot
     $env:ZENCLASH_PACKAGE_TEST_MODE = $PreviousMode
-    $env:MIHOMO_VERSION = $PreviousMihomoTag
     $ResolvedTestRoot = [System.IO.Path]::GetFullPath($TestRoot)
     $TemporaryPrefix = $TemporaryRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
     if (-not $ResolvedTestRoot.StartsWith($TemporaryPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or

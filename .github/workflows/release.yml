@@ -17,6 +17,11 @@ on:
         required: false
         default: ""
         type: string
+      build_linux:
+        description: Build the Ubuntu .deb package
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -30,6 +35,7 @@ jobs:
     uses: ./.github/workflows/validate-release.yml
     with:
       mihomo_version: ${{ inputs.mihomo_version }}
+      build_linux: ${{ inputs.build_linux || false }}
     secrets:
       test_profile_url: ${{ secrets.ZENCLASH_TEST_PROFILE_URL }}
 
@@ -56,7 +62,13 @@ jobs:
         run: |
           set -euo pipefail
           cd dist
-          sha256sum ./*.dmg ./*-setup.exe ./*.deb >SHA256SUMS
+          shopt -s nullglob
+          artifacts=(./*.dmg ./*-setup.exe ./*.deb)
+          if (( ${#artifacts[@]} == 0 )); then
+            echo "No release artifacts were downloaded" >&2
+            exit 1
+          fi
+          sha256sum "${artifacts[@]}" >SHA256SUMS
 
       - name: Attest release artifacts
         if: github.event.repository.visibility == 'public'

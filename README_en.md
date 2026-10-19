@@ -75,11 +75,11 @@ There is no official release yet. Visit **[Releases to browse ZenClash test buil
 
 | Platform | Architecture | Installer |
 | --- | --- | --- |
-| macOS | Apple Silicon (arm64) | `.dmg` |
-| Windows | x86_64, arm64 | Setup wizard `.exe` |
-| Ubuntu 24.04+ | x86_64, arm64 | `.deb` |
+| macOS | Apple Silicon (arm64), Intel (x86_64) | `.dmg` |
+| Windows | x86_64 | Setup wizard `.exe` |
+| Ubuntu 24.04+ | x86_64, arm64 (optional build) | `.deb` |
 
-Release packages include Mihomo. ZenClash discovers and prepares the core at startup. Check the release notes for package formats and system requirements. macOS users can follow the [installation guide](docs/installation/macos_en.md).
+Release packages do not include the Mihomo core. Download the build for your system and put it on `PATH`, or select it under **Settings → Core → Choose file**. Check the release notes for package formats and system requirements. macOS users can follow the [installation guide](docs/installation/macos_en.md).
 
 **Three steps to get connected:**
 

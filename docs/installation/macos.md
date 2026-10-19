@@ -9,7 +9,7 @@
 
 ## 系统要求
 
-- Apple Silicon Mac（M1、M2、M3、M4 或更新型号）
+- Apple Silicon Mac（M1、M2、M3、M4 或更新型号），或 Intel Mac（`x86_64`）
 - macOS 11 Big Sur 或更高版本
 - 安装和首次打开时使用管理员账户
 
@@ -19,24 +19,24 @@
 uname -m
 ```
 
-输出应为 `arm64`。当前发布包不支持 Intel Mac 的 `x86_64` 架构。
+Apple Silicon 输出为 `arm64`，Intel Mac 输出为 `x86_64`。请下载与芯片型号对应的安装包。
 
 ## 下载安装包
 
 1. 打开 [ZenClash Releases](https://github.com/HaiwenZhang/zenclash/releases)。
-2. 下载当前版本的 `ZenClash-<version>-macOS-arm64.dmg`。
+2. 下载当前版本的 `ZenClash-<version>-macOS-arm64.dmg`（Apple Silicon）或 `ZenClash-<version>-macOS-x86_64.dmg`（Intel）。
 3. 同时下载同一 Release 中的 `SHA256SUMS`。
 
 请只从 ZenClash 官方 GitHub 仓库下载。第三方重新打包的文件可能与公开构建不同。
 
 ## 校验下载文件
 
-打开“终端”，计算 DMG 的 SHA-256。将下面的 `<version>` 替换为实际版本号：
+打开“终端”，计算 DMG 的 SHA-256。将下面的 `<version>` 替换为实际版本号，并将 `<arch>` 替换为 `arm64` 或 `x86_64`：
 
 ```sh
 cd ~/Downloads
-shasum -a 256 "ZenClash-<version>-macOS-arm64.dmg"
-grep "ZenClash-<version>-macOS-arm64.dmg" SHA256SUMS
+shasum -a 256 "ZenClash-<version>-macOS-<arch>.dmg"
+grep "ZenClash-<version>-macOS-<arch>.dmg" SHA256SUMS
 ```
 
 两个命令显示的 64 位十六进制摘要必须完全相同。如果不一致，请删除 DMG 并从官方 Release 重新下载，不要继续安装。
@@ -84,6 +84,22 @@ open -a ZenClash
 
 这只影响 `/Applications/ZenClash.app`，不会全局关闭 Gatekeeper。不要使用 `spctl --master-disable` 等全局关闭系统安全检查的命令。
 
+## 准备 Mihomo 内核
+
+安装包不包含 Mihomo 内核，需要自行准备。请从 [Mihomo Releases](https://github.com/MetaCubeX/mihomo/releases) 下载与芯片对应的文件：Apple Silicon 用 `mihomo-darwin-arm64`，Intel 用 `mihomo-darwin-amd64-compatible`。解压后执行：
+
+```sh
+chmod +x ~/Downloads/mihomo
+xattr -dr com.apple.quarantine ~/Downloads/mihomo
+```
+
+然后二选一：
+
+- 在 ZenClash 中打开“设置 → 运行内核 → 选择文件”，指向该内核；
+- 或把内核放到 `PATH` 中的任一目录，例如 `sudo mv ~/Downloads/mihomo /usr/local/bin/mihomo`。
+
+如果应用启动后显示离线，通常就是还没有找到内核。
+
 ## 首次配置与 TUN 授权
 
 1. 打开 ZenClash，进入“订阅管理”。
@@ -129,7 +145,7 @@ ZenClash 只会通知有新版本并打开官方 Release 页面，不会静默�
 
 ### Intel Mac 无法运行
 
-当前 DMG 仅包含 Apple Silicon `arm64` 版本，Intel Mac 暂不受支持。
+请确认下载的是 `ZenClash-<version>-macOS-x86_64.dmg`，而不是 `arm64` 版本。Intel Mac 需要 `x86_64` 安装包。
 
 ## 卸载
 

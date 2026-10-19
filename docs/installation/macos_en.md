@@ -9,7 +9,7 @@ This guide applies to macOS packages downloaded from the official ZenClash GitHu
 
 ## System requirements
 
-- An Apple Silicon Mac (M1, M2, M3, M4, or newer)
+- An Apple Silicon Mac (M1, M2, M3, M4, or newer), or an Intel Mac (`x86_64`)
 - macOS 11 Big Sur or newer
 - An administrator account for installation and first launch
 
@@ -19,24 +19,24 @@ You can find the chip model under **Apple menu → About This Mac**, or run this
 uname -m
 ```
 
-The output must be `arm64`. The current release does not support the `x86_64` architecture used by Intel Macs.
+Apple Silicon prints `arm64`; Intel Macs print `x86_64`. Download the installer that matches your chip model.
 
 ## Download the installer
 
 1. Open [ZenClash Releases](https://github.com/HaiwenZhang/zenclash/releases).
-2. Download `ZenClash-<version>-macOS-arm64.dmg` for the current release.
+2. Download `ZenClash-<version>-macOS-arm64.dmg` (Apple Silicon) or `ZenClash-<version>-macOS-x86_64.dmg` (Intel) for the current release.
 3. Download `SHA256SUMS` from the same release.
 
 Download ZenClash only from its official GitHub repository. A third-party repackaged file may differ from the public build.
 
 ## Verify the download
 
-Open Terminal and calculate the DMG's SHA-256 digest. Replace `<version>` with the version you downloaded:
+Open Terminal and calculate the DMG's SHA-256 digest. Replace `<version>` with the version you downloaded and `<arch>` with `arm64` or `x86_64`:
 
 ```sh
 cd ~/Downloads
-shasum -a 256 "ZenClash-<version>-macOS-arm64.dmg"
-grep "ZenClash-<version>-macOS-arm64.dmg" SHA256SUMS
+shasum -a 256 "ZenClash-<version>-macOS-<arch>.dmg"
+grep "ZenClash-<version>-macOS-<arch>.dmg" SHA256SUMS
 ```
 
 The 64-character hexadecimal digest printed by both commands must match exactly. If it does not, delete the DMG, download it again from the official release, and do not continue the installation.
@@ -84,6 +84,22 @@ open -a ZenClash
 
 This affects only `/Applications/ZenClash.app`; it does not disable Gatekeeper globally. Do not use commands such as `spctl --master-disable` that globally disable macOS security checks.
 
+## Prepare the Mihomo core
+
+The installer does not include the Mihomo core, so you need to supply one. Download the matching build from [Mihomo Releases](https://github.com/MetaCubeX/mihomo/releases): `mihomo-darwin-arm64` for Apple Silicon, `mihomo-darwin-amd64-compatible` for Intel. After extracting it, run:
+
+```sh
+chmod +x ~/Downloads/mihomo
+xattr -dr com.apple.quarantine ~/Downloads/mihomo
+```
+
+Then do one of the following:
+
+- Open **Settings → Core → Choose file** in ZenClash and point it at the core.
+- Or put the core in any directory on `PATH`, for example `sudo mv ~/Downloads/mihomo /usr/local/bin/mihomo`.
+
+If the app shows offline after launch, it usually means no core has been found yet.
+
 ## Initial setup and TUN authorization
 
 1. Open ZenClash and go to **Profiles**.
@@ -129,7 +145,7 @@ Do not force the app to run with `xattr` if its digest or signatures fail verifi
 
 ### ZenClash does not run on an Intel Mac
 
-The current DMG contains only the Apple Silicon `arm64` build. Intel Macs are not currently supported.
+Make sure you downloaded `ZenClash-<version>-macOS-x86_64.dmg`, not the `arm64` build. Intel Macs require the `x86_64` installer.
 
 ## Uninstall
 

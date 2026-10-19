@@ -24,14 +24,11 @@ DefaultDirName={localappdata}\Programs\ZenClash
 DefaultGroupName=ZenClash
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-#if AppArchitecture == "arm64"
-ArchitecturesAllowed=arm64
-ArchitecturesInstallIn64BitMode=arm64
-#elif AppArchitecture == "x64"
+#if AppArchitecture == "x64"
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 #else
-  #error AppArchitecture must be x64 or arm64
+  #error AppArchitecture must be x64
 #endif
 Compression=lzma2/max
 SolidCompression=yes

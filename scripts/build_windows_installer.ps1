@@ -2,13 +2,9 @@
 param(
     [string]$Version = "0.2.0",
     [string]$OutputDir = "",
-    [string]$MihomoBinary = $env:ZENCLASH_MIHOMO_BINARY,
-    [string]$GeoDataFile = $env:ZENCLASH_GEODATA_FILE,
     [string]$InnoCompiler = $env:ZENCLASH_ISCC,
     [string]$ProfilePath = $(if ($env:ZENCLASH_CONFIG) { $env:ZENCLASH_CONFIG } else { "" }),
-    [string]$MihomoVersion = $(if ($env:MIHOMO_VERSION) { $env:MIHOMO_VERSION } else { "v1.19.30" }),
-    [string]$GeoDataVersion = $(if ($env:MIHOMO_GEODATA_VERSION) { $env:MIHOMO_GEODATA_VERSION } else { "latest" }),
-    [ValidateSet('x64', 'arm64')]
+    [ValidateSet('x64')]
     [string]$Architecture = 'x64'
 )
 
@@ -16,8 +12,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$TargetTriple = if ($Architecture -eq 'arm64') { 'aarch64-pc-windows-msvc' } else { 'x86_64-pc-windows-msvc' }
-$MihomoArchitecture = if ($Architecture -eq 'arm64') { 'arm64' } else { 'amd64' }
+$TargetTriple = 'x86_64-pc-windows-msvc'
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
     $OutputDir = Join-Path $ProjectRoot "dist"
 }
@@ -39,34 +34,12 @@ $StageDir = Join-Path $WorkDir "app"
 New-Item -ItemType Directory -Force -Path $StageDir | Out-Null
 
 try {
-    if ([string]::IsNullOrWhiteSpace($MihomoBinary)) {
-        $MihomoBinary = Join-Path $WorkDir 'mihomo.exe'
-        & (Join-Path $PSScriptRoot 'download_mihomo.ps1') -OutputPath $MihomoBinary -Version $MihomoVersion -Architecture $MihomoArchitecture
-    }
-
-    if (-not (Test-Path -Path $MihomoBinary -PathType Leaf)) {
-        throw "Set ZENCLASH_MIHOMO_BINARY to a real Mihomo executable"
-    }
-    if ([string]::IsNullOrWhiteSpace($GeoDataFile)) {
-        $GeoDataFile = Join-Path $WorkDir "geoip.metadb"
-        & (Join-Path $PSScriptRoot "download_mihomo_geodata.ps1") -OutputPath $GeoDataFile -ReleaseTag $GeoDataVersion
-    }
-    if (-not (Test-Path -Path $GeoDataFile -PathType Leaf)) {
-        throw "Set ZENCLASH_GEODATA_FILE to a real geoip.metadb file"
-    }
-    $BundledMihomoVersion = (& $MihomoBinary -v) -join "`n"
-    if ($LASTEXITCODE -ne 0) {
-        throw "The supplied Mihomo executable failed its version check"
-    }
-
     $PreviousBuildVersion = $env:ZENCLASH_VERSION
-    $PreviousMihomoVersion = $env:ZENCLASH_BUNDLED_MIHOMO_VERSION
     Push-Location $ProjectRoot
     try {
         rustup target add $TargetTriple
         if ($LASTEXITCODE -ne 0) { throw "rustup target add failed" }
         $env:ZENCLASH_VERSION = $Version
-        $env:ZENCLASH_BUNDLED_MIHOMO_VERSION = $BundledMihomoVersion
         cargo build --release --locked -p zenclash-ui --bin zenclash --target $TargetTriple
         if ($LASTEXITCODE -ne 0) { throw "cargo build failed" }
         cargo build --release --locked -p zenclash-service --features "standalone,client" --bin zenclash-service --bin zenclash-service-install --bin zenclash-service-uninstall --target $TargetTriple
@@ -74,7 +47,6 @@ try {
     }
     finally {
         $env:ZENCLASH_VERSION = $PreviousBuildVersion
-        $env:ZENCLASH_BUNDLED_MIHOMO_VERSION = $PreviousMihomoVersion
         Pop-Location
     }
 
@@ -124,16 +96,10 @@ public static class ZenClashIconResource
     }
     $ResourcesDir = Join-Path $StageDir "resources"
     New-Item -ItemType Directory -Force -Path $ResourcesDir | Out-Null
-    Copy-Item $MihomoBinary (Join-Path $ResourcesDir "mihomo.exe")
-    Copy-Item $GeoDataFile (Join-Path $ResourcesDir "geoip.metadb")
     Copy-Item $ProfilePath (Join-Path $ResourcesDir "profile.yaml")
     Copy-Item (Join-Path $ProjectRoot "platforms\common\recovery.yaml") (Join-Path $ResourcesDir "recovery.yaml")
     Copy-Item (Join-Path $ProjectRoot "platforms\macos\ZenClash.png") (Join-Path $ResourcesDir "ZenClash.png")
     Copy-Item (Join-Path $ProjectRoot "LICENSE") (Join-Path $StageDir "LICENSE.txt")
-    & (Join-Path $ResourcesDir "mihomo.exe") -v
-    if ($LASTEXITCODE -ne 0) {
-        throw "The packaged Mihomo executable failed its version check"
-    }
 
     $IsccCandidates = [System.Collections.Generic.List[string]]::new()
     if (-not [string]::IsNullOrWhiteSpace($InnoCompiler)) {
